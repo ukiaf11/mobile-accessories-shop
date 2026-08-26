@@ -26,21 +26,15 @@ export function CategoryGrid({ catalog }: { catalog: CatalogController }) {
           : 'Pick a category, or choose your model first so we only show what fits.'
       }
     >
-      <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
-        {categories.filter((category) => category.active).map((category, index) => {
+      <ul className="card-enter grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
+        {categories.filter((category) => category.active).map((category) => {
           const Icon = categoryIcon(category.icon);
           const count = countsByCategory.get(category.id) ?? 0;
           const active = filters.categoryId === category.id;
           const empty = count === 0;
 
           return (
-            <motion.li
-              key={category.id}
-              initial={reduced ? false : { opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.4 }}
-              transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.32) }}
-            >
+            <li key={category.id}>
               <motion.button
                 whileHover={empty ? undefined : lift}
                 type="button"
@@ -92,17 +86,12 @@ export function CategoryGrid({ catalog }: { catalog: CatalogController }) {
                   />
                 )}
               </motion.button>
-            </motion.li>
+            </li>
           );
         })}
 
         {/* "Custom / Other" is a first-class category per FR-03, not an error fallback. */}
-        <motion.li
-          initial={reduced ? false : { opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.4, delay: 0.36 }}
-        >
+        <li>
           <motion.button
             whileHover={lift}
             type="button"
@@ -122,7 +111,7 @@ export function CategoryGrid({ catalog }: { catalog: CatalogController }) {
             </span>
             <ArrowUpRight aria-hidden className="size-4 text-accent-strong" />
           </motion.button>
-        </motion.li>
+        </li>
       </ul>
     </Section>
   );

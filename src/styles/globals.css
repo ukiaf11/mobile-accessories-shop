@@ -129,14 +129,61 @@
   }
 
   /*
-   * `content-visibility: auto` was tried here and removed. With ~70 cards the paint saving
-   * was negligible, while the placeholder size estimate did not match the real card height:
-   * as cards were realised the document height kept changing, which moved the scroll
-   * position under the customer. It also leaves the grid blank when the page is printed.
-   * `contain: layout` keeps the useful part — a card's reflow cannot escape its own box.
+   * Card entrance.
+   *
+   * This replaces a per-card Framer Motion entrance that started at `opacity: 0` and only
+   * animated once the card had scrolled into view — up to 350 ms of stagger plus a 350 ms
+   * animation, which is what made cards look like they were "loading" during a scroll.
+   *
+   * Here the whole grid animates ONCE at mount, as a single compositor-driven animation.
+   * Cards further down the page have long finished by the time they are scrolled to, so
+   * nothing is ever waiting to appear. `backwards` fill keeps the first frame correct.
+   *
+   * `content-visibility: auto` was tried on these children and removed: its size estimate
+   * did not match the real card height, so realising cards kept changing the document
+   * height and moving the scroll position. It would also make this exact complaint worse,
+   * since it defers rendering until an element is near the viewport.
    */
-  .catalog-grid > * {
-    contain: layout;
+  .card-enter {
+    animation: card-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+
+  @keyframes card-enter {
+    from { opacity: 0; transform: translate3d(0, 12px, 0); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /*
+   * Hero floaters.
+   *
+   * These used to be four Framer `y: [0, -10, 0]` keyframe animations with
+   * `repeat: Infinity`. Framer cannot hardware-accelerate `y`, so each ran as a JS
+   * animation on the main-thread frame loop — and because they never end, they kept that
+   * loop alive with keepAlive for the entire life of the page, including while the hero
+   * was scrolled far out of view.
+   *
+   * As CSS the compositor owns them and the browser can throttle them off screen. The
+   * float and the entrance are on separate elements on purpose: both write `transform`,
+   * and one element can only have one transform.
+   *
+   * The global prefers-reduced-motion block below neutralises both.
+   */
+  .hero-float {
+    animation: hero-float 6s ease-in-out infinite;
+  }
+
+  @keyframes hero-float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -10px, 0); }
+  }
+
+  .hero-float-in {
+    animation: hero-float-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+
+  @keyframes hero-float-in {
+    from { opacity: 0; transform: scale(0.9) translateY(24px); }
+    to   { opacity: 1; transform: none; }
   }
 
   .skeleton {
@@ -174,7 +221,16 @@
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /*
+     * Resetting the DELAY matters as much as the duration. `.hero-float-in` uses
+     * `animation-fill-mode: backwards` with a per-floater delay of up to 0.6s, and
+     * `backwards` applies the `from` keyframe (opacity 0) for the whole delay — so
+     * without this line the hero cards stayed invisible for over half a second for
+     * exactly the people who asked for less motion.
+     */
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }

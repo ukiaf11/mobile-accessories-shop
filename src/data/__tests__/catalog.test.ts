@@ -113,3 +113,34 @@ describe('compatibility rules', () => {
     expect(orphans.map((d) => d.id)).toEqual([]);
   });
 });
+
+describe('search index', () => {
+  it('gives every product a lowercased haystack built at module load', () => {
+    for (const product of products) {
+      expect(product.searchText.length, product.id).toBeGreaterThan(0);
+      expect(product.searchText, product.id).toBe(product.searchText.toLowerCase());
+    }
+  });
+
+  it('matches on brand, series and model as the blueprint requires', () => {
+    // Blueprint 04_DATA_MODEL_CATALOG.md section 10: searching "15 pro" must find the
+    // iPhone 15 Pro case, glass and camera protector.
+    const hits = products.filter((p) => p.searchText.includes('iphone 15 pro'));
+    expect(hits.length).toBeGreaterThan(5);
+    expect(hits.some((p) => p.categoryId === 'cases')).toBe(true);
+    expect(hits.some((p) => p.categoryId === 'screen-protection')).toBe(true);
+  });
+
+  it('matches on product name, category and tags', () => {
+    const magsafe = productById.get('case-magsafe-clear')!;
+    for (const term of ['magsafe', 'clear', 'cases', 'transparent']) {
+      expect(magsafe.searchText, term).toContain(term);
+    }
+  });
+
+  it('does not leak a device name into a product that does not fit it', () => {
+    const fold = productById.get('case-fold-hinge')!;
+    expect(fold.searchText).toContain('galaxy z fold 6');
+    expect(fold.searchText).not.toContain('iphone 15 pro');
+  });
+});

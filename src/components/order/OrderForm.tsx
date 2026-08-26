@@ -46,8 +46,10 @@ const formSchema = z.object({
 type FormValues = z.input<typeof formSchema>;
 
 export function OrderForm({ device }: { device: ResolvedDevice | null }) {
-  const { overlay, closeOverlay } = useUiStore();
-  const { items, clear } = useCartStore();
+  const overlay = useUiStore((state) => state.overlay);
+  const closeOverlay = useUiStore((state) => state.closeOverlay);
+  const items = useCartStore((state) => state.items);
+  const clear = useCartStore((state) => state.clear);
   const { count, subtotal, hasAskPrice } = cartTotals(items);
   const submission = useSubmitRequest();
 

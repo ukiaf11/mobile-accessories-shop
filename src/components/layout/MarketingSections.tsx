@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight, Clock, HeartHandshake, Layers, MapPin, MessageCircle, MessageSquarePlus,
@@ -23,14 +24,28 @@ import { ProductCard } from '../catalog/ProductCard';
 
 export function FeaturedProducts({ catalog }: { catalog: CatalogController }) {
   const addToCart = useCartStore((state) => state.add);
-  const { openQuickView } = useUiStore();
-  const { reduced } = useMotionPreference();
+  // One selector per action: `useUiStore()` bare snapshots the whole state, so any UI
+  // change re-rendered this section and every memoised card under it.
+  const openQuickView = useUiStore((state) => state.openQuickView);
+  const device = catalog.selectedDevice;
 
-  const handleAdd = (product: Product) => {
-    addToCart(product, { device: catalog.selectedDevice });
-    track('add_to_cart', { product: product.id, from: 'featured' });
-    toast('success', 'Added to your request list', product.name);
-  };
+  // Stable identities so the memoised ProductCard stays memoised.
+  const handleAdd = useCallback(
+    (product: Product) => {
+      addToCart(product, { device });
+      track('add_to_cart', { product: product.id, from: 'featured' });
+      toast('success', 'Added to your request list', product.name);
+    },
+    [addToCart, device],
+  );
+
+  const handleQuickView = useCallback(
+    (product: Product) => {
+      track('product_viewed', { product: product.id, from: 'featured' });
+      openQuickView(product);
+    },
+    [openQuickView],
+  );
 
   return (
     <Section
@@ -38,25 +53,16 @@ export function FeaturedProducts({ catalog }: { catalog: CatalogController }) {
       title="What people pick up most"
       description="The accessories that move fastest at the counter — available for most models we stock."
     >
-      <ul className="catalog-grid grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-        {featuredProducts.slice(0, 8).map((product, index) => (
-          <motion.li
-            key={product.id}
-            initial={reduced ? false : { opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.35) }}
-          >
+      <ul className="catalog-grid card-enter grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+        {featuredProducts.slice(0, 8).map((product) => (
+          <li key={product.id}>
             <ProductCard
               product={product}
-              device={catalog.selectedDevice}
-              onQuickView={(entry) => {
-                track('product_viewed', { product: entry.id, from: 'featured' });
-                openQuickView(entry);
-              }}
+              device={device}
+              onQuickView={handleQuickView}
               onAdd={handleAdd}
             />
-          </motion.li>
+          </li>
         ))}
       </ul>
     </Section>
@@ -118,7 +124,7 @@ export function CompatibilitySection() {
                 initial={reduced ? false : { opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.45, delay: index * 0.1 }}
+                transition={{ duration: 0.3, delay: index * 0.04 }}
               >
                 <span aria-hidden className="grid size-11 place-items-center rounded-xl bg-white/10 text-accent-ring">
                   <Icon className="size-5" />
@@ -146,24 +152,15 @@ const BENEFITS = [
 ];
 
 export function WhyShopSection() {
-  const { reduced } = useMotionPreference();
-
   return (
     <Section
       eyebrow="Why buy here"
       title="A shop, not a marketplace"
       description="You get the accessory that fits, checked by someone who handles these models every day."
     >
-      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        {BENEFITS.map(({ icon: Icon, title, body }, index) => (
-          <motion.li
-            key={title}
-            initial={reduced ? false : { opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.4, delay: Math.min(index * 0.06, 0.3) }}
-            className="surface-card flex gap-4 p-5"
-          >
+      <ul className="card-enter grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        {BENEFITS.map(({ icon: Icon, title, body }) => (
+          <li key={title} className="surface-card flex gap-4 p-5">
             <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-strong">
               <Icon className="size-5" />
             </span>
@@ -171,7 +168,7 @@ export function WhyShopSection() {
               <h3 className="text-[15px] font-bold text-ink">{title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
             </div>
-          </motion.li>
+          </li>
         ))}
       </ul>
     </Section>

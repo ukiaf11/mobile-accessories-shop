@@ -91,26 +91,14 @@ export function resolveDevice(deviceId: string | null): ResolvedDevice | null {
   return { ...device, brandName: brandName(device.brandId) };
 }
 
-/** Matches a free-text query against brand, series, model, product, category and tags. */
-function matchesQuery(product: Product, needle: string): boolean {
-  if (!needle) return true;
-  const haystack = [
-    product.name,
-    product.description,
-    product.categoryId,
-    ...(product.tags ?? []),
-    ...product.compatibleDeviceIds.slice(0, 400).flatMap((id) => {
-      const device = deviceById.get(id);
-      return device ? [device.name, device.series, brandName(device.brandId)] : [];
-    }),
-  ]
-    .join(' ')
-    .toLowerCase();
-  return needle
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((term) => haystack.includes(term));
+/**
+ * Matches a free-text query against brand, series, model, product, category and tags.
+ * The haystack is precomputed in `buildProducts`, so this is a substring test rather than
+ * a per-keystroke rebuild of a ~312 KB string.
+ */
+function matchesQuery(product: Product, terms: string[]): boolean {
+  if (terms.length === 0) return true;
+  return terms.every((term) => product.searchText.includes(term));
 }
 
 export function useCatalogFilters() {
@@ -194,6 +182,7 @@ export function useCatalogFilters() {
   }, [filters.deviceId, filters.deviceType]);
 
   const results = useMemo(() => {
+    const terms = filters.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const filtered = compatibleProducts.filter((product) => {
       if (filters.categoryId && product.categoryId !== filters.categoryId) return false;
       if (filters.availableOnly && UNAVAILABLE.has(product.availability)) return false;
@@ -201,7 +190,7 @@ export function useCatalogFilters() {
       if (filters.tags.length && !filters.tags.every((tag) => product.tags?.includes(tag))) {
         return false;
       }
-      return matchesQuery(product, filters.query.trim());
+      return matchesQuery(product, terms);
     });
 
     const sorted = [...filtered];

@@ -35,7 +35,7 @@ function ToastRow({ toast }: { toast: Toast }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.98 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-line bg-surface/95 p-3.5 shadow-[var(--shadow-lift)] backdrop-blur"
+      className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-line bg-surface/95 p-3.5 shadow-[var(--shadow-lift)]"
     >
       <Icon className={`mt-0.5 size-5 shrink-0 ${TONE_CLASS[toast.tone]}`} aria-hidden />
       <div className="min-w-0 flex-1">

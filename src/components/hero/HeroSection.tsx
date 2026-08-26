@@ -181,37 +181,26 @@ export function HeroSection() {
               reduced={reduced}
               className={`absolute w-[8.5rem] sm:w-40 ${floater.className}`}
             >
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 24, scale: 0.9 }}
-                animate={
-                  reduced
-                    ? { opacity: 1 }
-                    : { opacity: 1, y: [0, -10, 0], scale: 1 }
-                }
-                transition={
-                  reduced
-                    ? { duration: 0 }
-                    : {
-                        opacity: { duration: 0.5, delay: floater.delay },
-                        scale: { duration: 0.5, delay: floater.delay },
-                        y: {
-                          duration: 5.5 + floater.depth / 20,
-                          delay: floater.delay,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        },
-                      }
-                }
-                className="glass-panel flex items-center gap-2.5 rounded-2xl p-2.5 shadow-[var(--shadow-float)]"
+              <div
+                className="hero-float"
+                style={{
+                  animationDuration: `${5.5 + floater.depth / 20}s`,
+                  animationDelay: `${floater.delay}s`,
+                }}
               >
-                <div className="size-11 shrink-0 overflow-hidden rounded-xl">
-                  <ProductArt artKey={floater.art} label="" />
+                <div
+                  className="hero-float-in glass-panel flex items-center gap-2.5 rounded-2xl p-2.5 shadow-[var(--shadow-float)]"
+                  style={{ animationDelay: `${floater.delay}s` }}
+                >
+                  <div className="size-11 shrink-0 overflow-hidden rounded-xl">
+                    <ProductArt artKey={floater.art} label="" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] leading-tight font-bold text-ink">{floater.label}</p>
+                    <p className="text-[11px] font-semibold text-accent-strong">{floater.price}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] leading-tight font-bold text-ink">{floater.label}</p>
-                  <p className="text-[11px] font-semibold text-accent-strong">{floater.price}</p>
-                </div>
-              </motion.div>
+              </div>
             </ParallaxLayer>
           ))}
         </div>

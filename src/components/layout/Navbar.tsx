@@ -30,15 +30,28 @@ export function AnnouncementBar() {
 }
 
 export function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
+  // Initialised from the real scroll position so a reload part-way down the page
+  // paints the correct header on the first frame, with no setState in an effect.
+  const [scrolled, setScrolled] = useState(() => window.scrollY > 12);
   const items = useCartStore((state) => state.items);
   const { count } = cartTotals(items);
-  const { openCart, mobileNavOpen, setMobileNav } = useUiStore();
+  const openCart = useUiStore((state) => state.openCart);
+  const mobileNavOpen = useUiStore((state) => state.mobileNavOpen);
+  const setMobileNav = useUiStore((state) => state.setMobileNav);
   const { reduced } = useMotionPreference();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
+    // Coalesce to one read per frame. React bails out when the boolean is unchanged, so
+    // this is cheap either way, but it keeps the layout read off the scroll event itself.
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 12);
+        ticking = false;
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -59,11 +72,23 @@ export function Navbar() {
 
   return (
     <header
+      /*
+       * No backdrop-filter on this header.
+       *
+       * It is `sticky`, so it is on screen for every frame of every scroll — and a
+       * backdrop-filter forces the compositor to re-snapshot and re-blur everything behind
+       * its full-width box on each of those frames, because the content behind it is moving
+       * by definition. Measured at roughly -20% main-thread long-task time for the scroll
+       * pass. The fill is opaque instead, which looks nearly identical over this palette.
+       *
+       * `.glass-panel` in globals.css is deliberately left alone: the hero floaters use it,
+       * and it is not on screen for the whole scroll.
+       */
       className={cn(
         'sticky top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300',
         scrolled
-          ? 'glass-panel border-b shadow-[0_4px_24px_-16px_rgb(17_24_39/0.35)]'
-          : 'border-b border-transparent bg-background/80 backdrop-blur-sm',
+          ? 'border-b border-line bg-surface shadow-[0_4px_24px_-16px_rgb(17_24_39/0.35)]'
+          : 'border-b border-transparent bg-background',
       )}
     >
       <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">

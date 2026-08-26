@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus, PackageSearch, SlidersHorizontal, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Product } from '../../types';
 import { categoryName } from '../../data/categories';
 import { cn } from '../../lib/cn';
@@ -12,7 +12,6 @@ import { useCartStore } from '../../store/cartStore';
 import { useUiStore } from '../../store/uiStore';
 import { toast } from '../../store/toastStore';
 import { Button } from '../ui/Button';
-import { ProductCardSkeleton } from '../ui/Skeleton';
 import { ProductCard } from './ProductCard';
 import { ProductFilters } from './ProductFilters';
 
@@ -20,41 +19,42 @@ export function CatalogSection({ catalog }: { catalog: CatalogController }) {
   const { filters, results, selectedDevice, selectCategory, reset, activeFilterCount } = catalog;
   const { reduced } = useMotionPreference();
   const addToCart = useCartStore((state) => state.add);
-  const { openQuickView, openCustomRequest, openCart } = useUiStore();
+  /*
+   * One selector per action. `useUiStore()` with no selector snapshots the entire state
+   * object, so every set() anywhere in the store — including opening the mobile menu —
+   * changed the snapshot and re-rendered this component and all 65 cards beneath it.
+   * Zustand actions are stable references, so these never cause a re-render.
+   */
+  const openQuickView = useUiStore((state) => state.openQuickView);
+  const openCustomRequest = useUiStore((state) => state.openCustomRequest);
+  const openCart = useUiStore((state) => state.openCart);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   /*
-   * Skeletons are shown for the first paint only. Re-rendering them on every filter
-   * change collapsed the grid's height, which moved the scroll position under the
-   * customer's finger; a brief opacity dip communicates the same thing without
-   * changing the layout at all.
+   * There is no async work behind this grid — the catalog is local, typed data. A skeleton
+   * phase and a fade-in therefore could not represent loading; they only delayed content
+   * that was already available. A 120 ms timer used to swap 8 skeletons for 65 real cards
+   * in one commit, and every filter change dimmed the finished grid to 60% for 160 ms.
+   * Both were removed: the grid renders its real content in the first commit.
    */
-  const [firstPaint, setFirstPaint] = useState(true);
-  const [settling, setSettling] = useState(false);
-  const initialFilters = useRef(filters);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setFirstPaint(false), 120);
-    return () => window.clearTimeout(timer);
-  }, []);
+  // Stable identities, so the memoised ProductCard actually stays memoised.
+  const handleAdd = useCallback(
+    (product: Product) => {
+      addToCart(product, { device: selectedDevice });
+      track('add_to_cart', { product: product.id, device: selectedDevice?.id });
+      toast('success', 'Added to your request list', `${product.name} · tap the cart to review.`);
+    },
+    [addToCart, selectedDevice],
+  );
 
-  useEffect(() => {
-    if (filters === initialFilters.current) return;
-    setSettling(true);
-    const timer = window.setTimeout(() => setSettling(false), 160);
-    return () => window.clearTimeout(timer);
-  }, [filters]);
-
-  const handleAdd = (product: Product) => {
-    addToCart(product, { device: selectedDevice });
-    track('add_to_cart', { product: product.id, device: selectedDevice?.id });
-    toast('success', 'Added to your request list', `${product.name} · tap the cart to review.`);
-  };
-
-  const handleQuickView = (product: Product) => {
-    track('product_viewed', { product: product.id });
-    openQuickView(product);
-  };
+  const handleQuickView = useCallback(
+    (product: Product) => {
+      track('product_viewed', { product: product.id });
+      openQuickView(product);
+    },
+    [openQuickView],
+  );
 
   return (
     <section id="catalog" className="scroll-mt-24 py-12 sm:py-16">
@@ -107,32 +107,17 @@ export function CatalogSection({ catalog }: { catalog: CatalogController }) {
           </aside>
 
           <div>
-            {firstPaint ? (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }, (_, index) => <ProductCardSkeleton key={index} />)}
-              </div>
-            ) : results.length > 0 ? (
-              <ul
-                aria-busy={settling || undefined}
-                className={cn(
-                  'catalog-grid grid grid-cols-2 gap-3 transition-opacity duration-150 sm:gap-4 md:grid-cols-3 xl:grid-cols-4',
-                  settling && 'opacity-60',
-                )}
-              >
-                {results.map((product, index) => (
-                  <motion.li
-                    key={product.id}
-                    initial={reduced ? false : { opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, delay: Math.min(index * 0.025, 0.3) }}
-                  >
+            {results.length > 0 ? (
+              <ul className="catalog-grid card-enter grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+                {results.map((product) => (
+                  <li key={product.id}>
                     <ProductCard
                       product={product}
                       device={selectedDevice}
                       onQuickView={handleQuickView}
                       onAdd={handleAdd}
                     />
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
             ) : (

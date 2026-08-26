@@ -22,7 +22,10 @@ import { ProductArt } from './ProductArt';
  * Variant choice and quantity live here so the card stays simple.
  */
 export function ProductQuickView({ device }: { device: ResolvedDevice | null }) {
-  const { overlay, quickViewProduct, closeOverlay, openCart } = useUiStore();
+  const overlay = useUiStore((state) => state.overlay);
+  const quickViewProduct = useUiStore((state) => state.quickViewProduct);
+  const closeOverlay = useUiStore((state) => state.closeOverlay);
+  const openCart = useUiStore((state) => state.openCart);
   const addToCart = useCartStore((state) => state.add);
   const open = overlay === 'quickview' && quickViewProduct !== null;
 

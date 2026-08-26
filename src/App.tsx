@@ -9,6 +9,7 @@ import { DeviceFinder } from './components/device-finder/DeviceFinder';
 import { CategoryGrid } from './components/catalog/CategoryGrid';
 import { CatalogSection } from './components/catalog/CatalogSection';
 import { ProductQuickView } from './components/catalog/ProductQuickView';
+import { ArtDefs } from './components/catalog/ProductArt';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { OrderForm } from './components/order/OrderForm';
 import { CustomRequestForm } from './components/order/CustomRequestForm';
@@ -25,6 +26,10 @@ export default function App() {
 
   return (
     <>
+      {/* Every product-artwork gradient, defined once for the whole document. Each card
+          used to carry its own copy: 828 of the page's 2012 SVG nodes. */}
+      <ArtDefs />
+
       <a
         href="#catalog"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-200 focus:rounded-xl focus:bg-accent focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white"

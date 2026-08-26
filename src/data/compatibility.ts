@@ -1,5 +1,6 @@
 import type { CompatibilityRule, DeviceModel, Product, ProductSeed } from '../types';
-import { activeDevices } from './devices';
+import { activeDevices, deviceById } from './devices';
+import { brandById } from './brands';
 import { slugify } from '../lib/format';
 
 /**
@@ -37,9 +38,43 @@ export function resolveCompatibility(
 
 /** Turns authoring seeds into the public `Product` shape. */
 export function buildProducts(seeds: ProductSeed[]): Product[] {
-  return seeds.map(({ compatibility, slug, ...rest }) => ({
-    ...rest,
-    slug: slug ?? slugify(rest.name),
-    compatibleDeviceIds: resolveCompatibility(compatibility),
-  }));
+  return seeds.map(({ compatibility, slug, ...rest }) => {
+    const compatibleDeviceIds = resolveCompatibility(compatibility);
+    return {
+      ...rest,
+      slug: slug ?? slugify(rest.name),
+      compatibleDeviceIds,
+      searchText: buildSearchText(rest, compatibleDeviceIds),
+    };
+  });
+}
+
+/**
+ * The search haystack, built once. This used to be assembled inside the filter predicate:
+ * for every product, slice 400 device ids, look each one up, join the names and lowercase
+ * the result — on every keystroke. Blueprint 04 section 10 defines what search must match.
+ */
+function buildSearchText(
+  rest: Omit<ProductSeed, 'compatibility' | 'slug'>,
+  compatibleDeviceIds: string[],
+): string {
+  const deviceWords = new Set<string>();
+  for (const id of compatibleDeviceIds) {
+    const device = deviceById.get(id);
+    if (!device) continue;
+    deviceWords.add(device.name);
+    deviceWords.add(device.series);
+    const brand = brandById.get(device.brandId);
+    if (brand) deviceWords.add(brand.name);
+    for (const alias of device.aliases ?? []) deviceWords.add(alias);
+  }
+
+  return [
+    rest.name,
+    rest.description,
+    rest.categoryId,
+    ...(rest.tags ?? []),
+    ...(rest.badges ?? []),
+    ...deviceWords,
+  ].join(' ').toLowerCase();
 }

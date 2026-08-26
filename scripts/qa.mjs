@@ -529,6 +529,105 @@ async function main() {
       await page.close();
     });
 
+    /* ─────────────────────────── Performance QA ────────────────────────── */
+    group('Performance QA');
+
+    await check('cards are visible almost immediately after scrolling into view', async () => {
+      /*
+       * This is the regression guard for the user-reported "cards take time to load".
+       * Measured on a 4x-throttled CPU: how long after an element intersects the viewport
+       * does it reach full opacity. Before the fix this was p95 914 ms, because each card
+       * started at opacity 0 and waited for a stagger delay plus a 350 ms animation that
+       * could not even begin until the card was already on screen.
+       */
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`, { waitUntil: 'load' });
+      await page.waitForTimeout(1200);
+
+      await page.evaluate(() => {
+        window.__reveal = [];
+        const seen = new WeakSet();
+        const io = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting || seen.has(entry.target)) continue;
+            seen.add(entry.target);
+            const start = performance.now();
+            const tick = () => {
+              if (Number(getComputedStyle(entry.target).opacity) > 0.99) {
+                window.__reveal.push(performance.now() - start);
+              } else if (performance.now() - start < 3000) {
+                requestAnimationFrame(tick);
+              } else {
+                window.__reveal.push(3000);
+              }
+            };
+            requestAnimationFrame(tick);
+          }
+        }, { threshold: 0.01 });
+        document.querySelectorAll('.catalog-grid > li, #categories li').forEach((el) => io.observe(el));
+      });
+
+      await page.evaluate(async () => {
+        const total = document.documentElement.scrollHeight;
+        for (let y = 0; y < total; y += 220) {
+          window.scrollTo({ top: y, behavior: 'instant' });
+          await new Promise((r) => setTimeout(r, 32));
+        }
+      });
+
+      const reveal = await page.evaluate(() => window.__reveal.slice().sort((a, b) => a - b));
+      await page.close();
+
+      assert(reveal.length >= 20, `only ${reveal.length} cards measured`);
+      const p95 = Math.round(reveal[Math.floor(reveal.length * 0.95)]);
+      // Generous ceiling: measured ~45 ms, was ~914 ms. Anything over 250 ms means a
+      // viewport-gated entrance animation has crept back in.
+      assert(p95 < 250, `card reveal p95 regressed to ${p95} ms (budget 250 ms)`);
+    });
+
+    /*
+     * There was a check here asserting that nothing outside the hero uses backdrop-filter.
+     * It was removed because it cannot fail: headless Chrome has no GPU compositing, so
+     * getComputedStyle().backdropFilter reports "none" for every element even when the
+     * rule is applied and the CSSOM contains it. A test that always passes is worse than
+     * no test. The backdrop-filter removals in Navbar.tsx and Toaster.tsx therefore rest
+     * on the mechanism (a sticky element's backdrop must be re-snapshotted and re-blurred
+     * on every scrolled frame), not on a measurement from this harness.
+     */
+    await check('the catalog grid renders its real cards in the first commit', async () => {
+      // No skeleton phase: the catalog is local data, so a loading placeholder could only
+      // delay content that was already available.
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`, { waitUntil: 'domcontentloaded' });
+      await page.locator('#catalog .catalog-grid').waitFor();
+      const skeletons = await page.locator('.skeleton').count();
+      const cards = await page.locator('#catalog .catalog-grid > li').count();
+      await page.close();
+      assert(cards > 20, `expected the real grid, found ${cards} cards`);
+      assertEqual(skeletons, 0, `${skeletons} skeletons rendered instead of real cards`);
+    });
+
+    await check('gradient definitions are shared, not duplicated per card', async () => {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`);
+      await page.locator('#catalog .catalog-grid').waitFor();
+      const { gradients, duplicateIds } = await page.evaluate(() => {
+        const ids = [...document.querySelectorAll('[id]')].map((el) => el.id);
+        const counts = new Map();
+        for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+        return {
+          gradients: document.querySelectorAll('linearGradient').length,
+          duplicateIds: [...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id),
+        };
+      });
+      await page.close();
+      // 210 before hoisting, ~80 after. Duplicate ids are invalid and unreachable by paint.
+      assert(gradients < 120, `${gradients} gradients: the per-card <defs> may be back`);
+      assertEqual(duplicateIds.length, 0, `duplicate element ids: ${duplicateIds.slice(0, 5).join(', ')}`);
+    });
+
     /* ────────────────────────── Accessibility QA ────────────────────────── */
     group('Accessibility QA');
 
@@ -641,6 +740,29 @@ async function main() {
       });
       assert(typeof moved === 'number' && moved < 1, `hero still animating (moved ${moved}px)`);
       await page.close();
+    });
+
+    await check('reduced motion never leaves content invisible', async () => {
+      /*
+       * The reduced-motion reset shortens animations to 0.01ms. Any animation using
+       * `animation-fill-mode: backwards` with a delay would otherwise hold its `from`
+       * keyframe — opacity 0 — for the whole delay. This asserts every CSS-animated
+       * element is actually visible, which the "hero animation" check does not cover
+       * (that one only measures movement, and an invisible element does not move either).
+       */
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`);
+      await page.getByRole('heading', { level: 1 }).waitFor();
+      await page.waitForTimeout(150);
+
+      const invisible = await page.evaluate(() =>
+        ['.hero-float', '.hero-float-in', '.card-enter']
+          .flatMap((sel) => [...document.querySelectorAll(sel)])
+          .filter((el) => Number(getComputedStyle(el).opacity) < 0.99)
+          .map((el) => String(el.className).slice(0, 40)),
+      );
+      await page.close();
+      assertEqual(invisible.length, 0, `still transparent under reduced motion: ${invisible.join(' | ')}`);
     });
 
     await check('the mobile menu button reports its expanded state', async () => {

@@ -59,7 +59,8 @@ const formSchema = z.object({
 type FormValues = z.input<typeof formSchema>;
 
 export function CustomRequestForm() {
-  const { overlay, closeOverlay } = useUiStore();
+  const overlay = useUiStore((state) => state.overlay);
+  const closeOverlay = useUiStore((state) => state.closeOverlay);
   const submission = useSubmitRequest();
   const open = overlay === 'custom';
 

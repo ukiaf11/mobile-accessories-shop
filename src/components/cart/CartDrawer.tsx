@@ -13,8 +13,16 @@ import { ProductArt } from '../catalog/ProductArt';
 
 /** Request list. Blueprint FR-07 — deliberately never called a "checkout". */
 export function CartDrawer({ device }: { device: ResolvedDevice | null }) {
-  const { overlay, closeOverlay, openOrder, openCustomRequest } = useUiStore();
-  const { items, setQuantity, increment, decrement, remove, clear } = useCartStore();
+  const overlay = useUiStore((state) => state.overlay);
+  const closeOverlay = useUiStore((state) => state.closeOverlay);
+  const openOrder = useUiStore((state) => state.openOrder);
+  const openCustomRequest = useUiStore((state) => state.openCustomRequest);
+  const items = useCartStore((state) => state.items);
+  const setQuantity = useCartStore((state) => state.setQuantity);
+  const increment = useCartStore((state) => state.increment);
+  const decrement = useCartStore((state) => state.decrement);
+  const remove = useCartStore((state) => state.remove);
+  const clear = useCartStore((state) => state.clear);
   const { count, subtotal, hasAskPrice } = cartTotals(items);
   const { reduced } = useMotionPreference();
 

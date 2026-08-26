@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { Fragment, memo } from 'react';
 import { cn } from '../../lib/cn';
 
 /**
@@ -71,6 +71,72 @@ const ART: Record<string, ArtSpec> = {
 
 const FALLBACK: ArtSpec = { family: 'brick', hue: 240 };
 
+/** Gradient id prefix for an art key. Shared by the sprite and every instance. */
+function artId(artKey: string | undefined): string {
+  return `art-${artKey && ART[artKey] ? artKey : 'fallback'}`;
+}
+
+interface Palette {
+  light: string;
+  mid: string;
+  deep: string;
+}
+
+function hueRamp(hue: number): Palette {
+  return {
+    light: `hsl(${hue} 92% 72%)`,
+    mid: `hsl(${hue} 78% 58%)`,
+    deep: `hsl(${hue} 62% 38%)`,
+  };
+}
+
+/**
+ * Every gradient the artwork system can reference, defined exactly once per page.
+ *
+ * Mount this once (App.tsx). SVG `url(#id)` references resolve document-wide, so a card
+ * anywhere on the page paints from these definitions without carrying its own copy.
+ */
+export function ArtDefs() {
+  const keys = [...Object.keys(ART), 'fallback'];
+
+  return (
+    <svg
+      aria-hidden
+      width="0"
+      height="0"
+      focusable="false"
+      style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+    >
+      <defs>
+        {/* Hue-independent: one specular highlight for the whole catalog. */}
+        <linearGradient id="art-shine" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+          <stop offset="45%" stopColor="#ffffff" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+
+        {keys.map((key) => {
+          const { hue } = ART[key] ?? FALLBACK;
+          const { light, mid, deep } = hueRamp(hue);
+          return (
+            <Fragment key={key}>
+              <linearGradient id={`art-${key}-bg`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={`hsl(${hue} 90% 96%)`} />
+                <stop offset="100%" stopColor={`hsl(${hue} 70% 90%)`} />
+              </linearGradient>
+              <linearGradient id={`art-${key}-body`} x1="0.1" y1="0" x2="0.9" y2="1">
+                <stop offset="0%" stopColor={light} />
+                <stop offset="55%" stopColor={mid} />
+                <stop offset="100%" stopColor={deep} />
+              </linearGradient>
+            </Fragment>
+          );
+        })}
+      </defs>
+    </svg>
+  );
+}
+
 interface ProductArtProps {
   artKey: string | undefined;
   /** Announced to screen readers; pass the product name. */
@@ -81,14 +147,16 @@ interface ProductArtProps {
 function ProductArtImpl({ artKey, label, className }: ProductArtProps) {
   const spec = (artKey && ART[artKey]) || FALLBACK;
   const { hue } = spec;
-  // Unique gradient ids per instance are unnecessary — the values are hue-derived and
-  // identical artwork can safely share a definition within one document.
-  const uid = `art-${artKey ?? 'fallback'}`;
+  /*
+   * Gradients live in one page-level sprite (`ArtDefs`), not in this instance. Each card
+   * used to emit its own <defs> with three <linearGradient>s: 828 of the page's 2012 SVG
+   * nodes, and because the ids are key-derived, ~half were duplicate ids that could never
+   * paint. The ids are unchanged, so every `url(#art-KEY-body)` reference below still
+   * resolves — it just resolves to the one definition instead of the 69th copy.
+   */
+  const uid = artId(artKey);
 
-  const light = `hsl(${hue} 92% 72%)`;
-  const mid = `hsl(${hue} 78% 58%)`;
-  const deep = `hsl(${hue} 62% 38%)`;
-  const wash = `hsl(${hue} 90% 96%)`;
+  const { light, mid, deep } = hueRamp(hue);
 
   return (
     // An empty label means the artwork is decorative — a nearby text node already
@@ -101,23 +169,6 @@ function ProductArtImpl({ artKey, label, className }: ProductArtProps) {
       className={cn('h-full w-full', className)}
       preserveAspectRatio="xMidYMid meet"
     >
-      <defs>
-        <linearGradient id={`${uid}-bg`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={wash} />
-          <stop offset="100%" stopColor={`hsl(${hue} 70% 90%)`} />
-        </linearGradient>
-        <linearGradient id={`${uid}-body`} x1="0.1" y1="0" x2="0.9" y2="1">
-          <stop offset="0%" stopColor={light} />
-          <stop offset="55%" stopColor={mid} />
-          <stop offset="100%" stopColor={deep} />
-        </linearGradient>
-        <linearGradient id={`${uid}-shine`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-          <stop offset="45%" stopColor="#ffffff" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
       <rect width="200" height="200" rx="28" fill={`url(#${uid}-bg)`} />
       <circle cx="152" cy="46" r="58" fill="#ffffff" opacity="0.45" />
       <circle cx="42" cy="168" r="46" fill={mid} opacity="0.16" />
@@ -125,12 +176,6 @@ function ProductArtImpl({ artKey, label, className }: ProductArtProps) {
       <g fill={`url(#${uid}-body)`}>{renderFamily(spec, uid, { light, mid, deep })}</g>
     </svg>
   );
-}
-
-interface Palette {
-  light: string;
-  mid: string;
-  deep: string;
 }
 
 function renderFamily(spec: ArtSpec, uid: string, palette: Palette) {
@@ -221,13 +266,13 @@ function renderPhone({ detail }: ArtSpec, uid: string, { deep, light }: Palette)
           <rect x={x + w - 8} y={y + 6} width="20" height="26" rx="7" fill="#0f172a" opacity="0.55" />
         </>
       )}
-      <rect x={x + 6} y={y + 8} width={w * 0.45} height={h * 0.5} rx="14" fill={`url(#${uid}-shine)`} />
+      <rect x={x + 6} y={y + 8} width={w * 0.45} height={h * 0.5} rx="14" fill="url(#art-shine)" />
     </>
   );
 }
 
 /* ── Flat sheets: tempered glass, films, skins ─────────────────────────────── */
-function renderSheet({ detail }: ArtSpec, uid: string, { deep, mid }: Palette) {
+function renderSheet({ detail }: ArtSpec, _uid: string, { deep, mid }: Palette) {
   return (
     <>
       <g transform="rotate(-8 100 100)">
@@ -279,7 +324,7 @@ function renderSheet({ detail }: ArtSpec, uid: string, { deep, mid }: Palette) {
           </g>
         )}
         <circle cx="100" cy="46" r="4" fill={deep} opacity="0.4" />
-        <rect x="62" y="38" width="40" height="70" rx="12" fill={`url(#${uid}-shine)`} />
+        <rect x="62" y="38" width="40" height="70" rx="12" fill="url(#art-shine)" />
       </g>
       {/* Peel tab, so it reads as a protector rather than a screen. */}
       <path d="M138 40l22-10-6 22z" fill={mid} opacity="0.75" />
@@ -292,7 +337,7 @@ function renderRing({ detail }: ArtSpec, uid: string, { deep, light, mid }: Pale
   return (
     <>
       <circle cx="100" cy="100" r="56" fill={`url(#${uid}-body)`} />
-      <circle cx="100" cy="100" r="56" fill={`url(#${uid}-shine)`} />
+      <circle cx="100" cy="100" r="56" fill="url(#art-shine)" />
       {detail === 'lens' && (
         <>
           <circle cx="100" cy="100" r="34" fill="#0f172a" opacity="0.45" />
@@ -360,7 +405,7 @@ function renderCable({ detail }: ArtSpec, uid: string, { deep, mid }: Palette) {
           d={long ? 'M92 150l9 22 9-22z' : 'M96 150l4 16 4-16z'}
           fill={deep}
         />
-        <rect x="92" y={long ? 40 : 64} width={long ? 8 : 4} height="52" rx="4" fill={`url(#${uid}-shine)`} />
+        <rect x="92" y={long ? 40 : 64} width={long ? 8 : 4} height="52" rx="4" fill="url(#art-shine)" />
       </g>
     );
   }
@@ -416,7 +461,7 @@ function renderBrick({ detail }: ArtSpec, uid: string, { deep, light, mid }: Pal
   return (
     <>
       <rect x={x} y={y} width={w} height={h} rx="20" fill={`url(#${uid}-body)`} />
-      <rect x={x} y={y} width={w * 0.55} height={h * 0.6} rx="18" fill={`url(#${uid}-shine)`} />
+      <rect x={x} y={y} width={w * 0.55} height={h * 0.6} rx="18" fill="url(#art-shine)" />
 
       {detail === 'plug' && (
         <>
@@ -492,7 +537,7 @@ function renderBuds(_spec: ArtSpec, uid: string, { deep, light }: Palette) {
     <>
       <rect x="58" y="104" width="84" height="60" rx="22" fill={`url(#${uid}-body)`} />
       <path d="M58 128h84" stroke={deep} strokeWidth="3" opacity="0.4" />
-      <rect x="62" y="108" width="46" height="30" rx="16" fill={`url(#${uid}-shine)`} />
+      <rect x="62" y="108" width="46" height="30" rx="16" fill="url(#art-shine)" />
       {[74, 126].map((cx, index) => (
         <g key={cx}>
           <circle cx={cx} cy="62" r="21" fill={`url(#${uid}-body)`} />
@@ -625,7 +670,7 @@ function renderFabric({ detail }: ArtSpec, uid: string, { deep, mid }: Palette) 
         </>
       )}
       <path d="M116 48v112" stroke={mid} strokeWidth="3" opacity="0.7" />
-      <rect x="46" y="50" width="40" height="56" rx="10" fill={`url(#${uid}-shine)`} />
+      <rect x="46" y="50" width="40" height="56" rx="10" fill="url(#art-shine)" />
     </>
   );
 }

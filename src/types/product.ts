@@ -56,6 +56,11 @@ export interface Product {
   tags?: string[];
   /** Resolved from `compatibility` at module load. Never hand-written. */
   compatibleDeviceIds: string[];
+  /**
+   * Lowercased brand + series + model + name + category + tags, joined once at module
+   * load so free-text search is a substring test rather than a rebuild-per-keystroke.
+   */
+  searchText: string;
   variants?: ProductVariant[];
   availability: Availability;
   active: boolean;
@@ -63,7 +68,7 @@ export interface Product {
 }
 
 /** Authoring shape: what `src/data/products.ts` writes before rules are expanded. */
-export type ProductSeed = Omit<Product, 'compatibleDeviceIds' | 'slug'> & {
+export type ProductSeed = Omit<Product, 'compatibleDeviceIds' | 'slug' | 'searchText'> & {
   slug?: string;
   compatibility: CompatibilityRule;
 };
