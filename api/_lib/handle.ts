@@ -1,9 +1,9 @@
 import type { z } from 'zod';
-import { LIMITS, toFieldErrors } from '../../shared/validation';
-import { claim, release, settle } from './idempotency';
-import { sendToShopOwner } from './mailer';
-import { checkRateLimit, clientKey } from './rate-limit';
-import { fail, logFailure, ok } from './respond';
+import { LIMITS, toFieldErrors } from '../../shared/validation.js';
+import { claim, release, settle } from './idempotency.js';
+import { sendToShopOwner } from './mailer.js';
+import { checkRateLimit, clientKey } from './rate-limit.js';
+import { fail, logFailure, ok } from './respond.js';
 
 /**
  * Shared request pipeline for both endpoints.

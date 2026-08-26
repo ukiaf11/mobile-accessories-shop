@@ -1,5 +1,5 @@
-import type { CustomRequestInput, OrderRequestInput } from '../shared/validation';
-import { escapeHtml, formatIst, money } from '../shared/text';
+import type { CustomRequestInput, OrderRequestInput } from '../shared/validation.js';
+import { escapeHtml, formatIst, money } from '../shared/text.js';
 
 /**
  * Transactional email templates.

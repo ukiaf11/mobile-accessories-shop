@@ -50,17 +50,30 @@ Zod 4 · Zustand 5 · Lucide React · Resend 6 · oxlint (Vite 8's default linte
 - **Push needs the `github-second` SSH alias.** The default key on this machine (`upendrabol7`)
   is DENIED on `ukiaf11` repos. Remote must be `git@github-second:ukiaf11/mobile-accessories-shop.git`,
   same as Hotel-Web, ACO and portfolio.
-- **Vercel token scope.** A previous token for `ukiaf11` saw zero projects — the live projects sit
-  in a scope that token cannot reach. Any new token must be created with the Scope dropdown set to
-  the team that owns the project.
+- **Vercel scope is resolved.** `vercel login` as `ukiaf11-7428` now reaches team
+  `upendras-projects-34931334`, which holds hotel-web, portfolio and this project. The older note
+  about a token seeing zero projects no longer applies to the CLI session on this machine.
 - **`RESEND_API_KEY` must never be `VITE_`-prefixed.** Anything prefixed `VITE_` is inlined into
   the client bundle. Blueprint §02.5.
 - **Playwright matches accessible names as a case-insensitive *substring*.** `name: 'Send Order
   Request'` also matched the dialog's `Close send order request` button. `exact: true` fixes it,
   but `getByLabel` then breaks because the label text includes the required asterisk — use
   `getByRole('combobox', { name })` for selects instead.
-- **`vercel dev` and `vercel deploy` need an interactive login.** Not possible in this session;
-  the API is instead covered end-to-end by `npm test`, which calls the real endpoint modules.
+- **Three Vercel-specific traps cost the most time here, and none show up locally:**
+  1. Vercel compiles `api/**` with the **root `tsconfig.json`**, not `tsconfig.api.json`. Ours had
+     only `references` and no `compilerOptions`, so it defaulted to `moduleResolution: nodenext`
+     and no Node types — every function failed to build. The root config now carries real options.
+  2. Vercel **transpiles but does not bundle** the functions, so Node ESM has to resolve the
+     relative imports itself and needs explicit `.js` extensions. Everything under `api/`,
+     `emails/` and `shared/` imports as `'../shared/validation.js'`. TS bundler resolution,
+     Vite and Vitest all map that back to the `.ts` file, so one spelling works everywhere.
+  3. Vercel's Node runtime invokes handlers as `(req: IncomingMessage, res: ServerResponse)`,
+     **not** with a Web `Request` — `export const config = { runtime: 'nodejs' }` does not change
+     that. `api/_lib/node-adapter.ts` bridges the two so the pipeline and its tests stay
+     Web-standard. Symptom was `request.headers.get is not a function`.
+
+  All three only appear in the deployed function's **runtime** logs
+  (`vercel logs <deployment-url>`); the build log only showed the first.
 - **Do not run `pkill -f vercel` from a shell whose own command line contains "vercel"** — it
   matches and kills itself, and the rest of the command silently never runs.
 
@@ -78,6 +91,9 @@ Phases 1–7 are **done and verified**. Phase 8 is blocked on the owner's accoun
   email templates, request IDs).
 - `npm run qa` — 37 browser checks green against the production build.
 - `npm run build` — clean. `npm run lint` — clean.
+- **Live: https://mobile-accessories-shop-fawn.vercel.app** (Vercel project
+  `mobile-accessories-shop` under team `upendras-projects-34931334`). Both endpoints verified
+  against production, including validation, recipient-smuggling rejection and rate limiting.
 
 ### Bugs QA caught that code review had not
 

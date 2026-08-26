@@ -119,6 +119,15 @@ them, not just eyeballed.
 - [x] Reduced motion stops the hero animation
 - [x] Mobile menu reports its expanded state
 
+### Bugs found in production and fixed
+
+- [x] Vercel compiled `api/` with the ROOT `tsconfig.json`, which had no compilerOptions and
+      defaulted to `moduleResolution: nodenext` — every function failed to build
+- [x] Vercel transpiles but does not bundle, so Node ESM could not resolve extensionless
+      relative imports at runtime (`ERR_MODULE_NOT_FOUND`) — `.js` extensions added
+- [x] Vercel's Node runtime passes an `IncomingMessage`, not a Web `Request`, so the pipeline
+      crashed on `request.headers.get is not a function` — `api/_lib/node-adapter.ts` bridges it
+
 ### Bugs found by QA and fixed
 
 - [x] Dialogs re-ran their effect every render, cancelling autofocus and bouncing focus back
@@ -133,10 +142,14 @@ them, not just eyeballed.
 
 ## Phase 8 — Launch
 
-- [~] Push project to GitHub
-- [!] Deploy frontend/API to Vercel — `vercel.json` is written and the build is verified, but
-      `vercel dev`/`vercel deploy` need an interactive login this session cannot perform
-- [!] Add production environment variables — owner
+- [x] Push project to GitHub (branch `build/mvp-implementation`)
+- [x] Deploy frontend/API to Vercel — **live at https://mobile-accessories-shop-fawn.vercel.app**
+      Both endpoints verified in production: 405 on GET, 422 with field errors on a bad body,
+      503 `not_configured` on a valid one (no mail key yet), recipient smuggling rejected,
+      rate limiting active.
+- [!] Add production environment variables — owner (`RESEND_API_KEY`, `SHOP_OWNER_EMAIL`,
+      `MAIL_FROM`). Until these are set the live API correctly answers 503 rather than
+      pretending an order went through.
 - [!] Verify email domain — owner
 - [!] Configure custom domain — owner
 - [!] Submit real test orders / confirm owner receives email — owner

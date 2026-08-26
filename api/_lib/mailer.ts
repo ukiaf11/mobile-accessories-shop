@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { sanitizeHeader } from '../../shared/text';
+import { sanitizeHeader } from '../../shared/text.js';
 
 /**
  * Transactional email. Blueprint 05 section 6 and 08 section 4:
