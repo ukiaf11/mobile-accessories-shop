@@ -587,15 +587,91 @@ async function main() {
       assert(p95 < 250, `card reveal p95 regressed to ${p95} ms (budget 250 ms)`);
     });
 
-    /*
-     * There was a check here asserting that nothing outside the hero uses backdrop-filter.
-     * It was removed because it cannot fail: headless Chrome has no GPU compositing, so
-     * getComputedStyle().backdropFilter reports "none" for every element even when the
-     * rule is applied and the CSSOM contains it. A test that always passes is worse than
-     * no test. The backdrop-filter removals in Navbar.tsx and Toaster.tsx therefore rest
-     * on the mechanism (a sticky element's backdrop must be re-snapshotted and re-blurred
-     * on every scrolled frame), not on a measurement from this harness.
-     */
+    await check('nothing outside the hero uses backdrop-filter', async () => {
+      /*
+       * A backdrop-filter on a sticky or always-visible element forces a re-snapshot and
+       * re-blur of its backdrop on every scrolled frame. An interleaved A/B on the shipped
+       * build put that at ~20% more frames over 32 ms (compositor cost, not main thread).
+       * Only the hero floaters may keep it: they scroll away.
+       *
+       * The positive control matters. An earlier version of this check was deleted on the
+       * false premise that headless Chrome always reports "none" — it does not, as the
+       * control proves. What IS true is that lightningcss minification currently drops the
+       * standard `backdrop-filter` from the built CSS and keeps only
+       * `-webkit-backdrop-filter`, which Chrome 150 no longer honours. So this assertion is
+       * weaker than it looks today; the control at least guarantees it is not vacuous
+       * because the harness cannot see the property at all.
+       */
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`);
+      await page.getByRole('heading', { level: 1 }).waitFor();
+
+      const { control, offenders } = await page.evaluate(() => {
+        const probe = document.createElement('div');
+        probe.style.backdropFilter = 'blur(8px)';
+        document.body.appendChild(probe);
+        const control = getComputedStyle(probe).backdropFilter;
+        probe.remove();
+
+        return {
+          control,
+          offenders: [...document.querySelectorAll('*')]
+            .filter((el) => {
+              const applied = getComputedStyle(el).backdropFilter;
+              return applied && applied !== 'none' && !el.closest('#top');
+            })
+            .map((el) => {
+              const cls = typeof el.className === 'string' ? el.className : (el.getAttribute('class') ?? '');
+              return `${el.tagName}.${cls.slice(0, 40)}`;
+            }),
+        };
+      });
+      await page.close();
+
+      assertEqual(control, 'blur(8px)', 'harness cannot read backdrop-filter, so this check would be vacuous');
+      assertEqual(offenders.length, 0, `backdrop-filter outside the hero: ${offenders.join(' | ')}`);
+    });
+
+    await check('card hover and press transitions actually animate', async () => {
+      /*
+       * Tailwind v4 compiles `-translate-y-*` to the standalone `translate` property and
+       * `scale-*` to `scale`, NOT to the `transform` shorthand. An arbitrary transition
+       * list naming only `transform` therefore leaves them un-animated and the hover lift
+       * teleports in a single frame — verified frame-by-frame: with `transform` the value
+       * jumps straight to "0px -6px", with `translate` it eases through -1.3, -4.0, -5.4.
+       * Nothing else in this suite drives a hover animation, so assert the computed
+       * transition-property covers the property each utility actually writes.
+       */
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await page.goto(`${BASE}/?device=apple-iphone-15-pro`);
+      await page.locator('#catalog .catalog-grid').waitFor();
+
+      const result = await page.evaluate(() => {
+        const card = document.querySelector('#catalog .catalog-grid > li article');
+        if (!card) return { error: 'no card found' };
+        const buttons = [...card.querySelectorAll('button')];
+        const addButton = buttons.at(-1);
+        const pill = card.querySelector('.rounded-full')?.parentElement;
+        const prop = (el) => (el ? getComputedStyle(el).transitionProperty : '');
+        return { card: prop(card), addButton: prop(addButton), pill: prop(pill) };
+      });
+      await page.close();
+
+      assert(!result.error, String(result.error));
+      assert(
+        /\btranslate\b|\ball\b/.test(result.card),
+        `card lift will not animate: transition-property is "${result.card}"`,
+      );
+      assert(
+        /\bscale\b|\ball\b/.test(result.addButton),
+        `button press will not animate: transition-property is "${result.addButton}"`,
+      );
+      assert(
+        /\btranslate\b|\ball\b/.test(result.pill),
+        `quick-view pill slide will not animate: transition-property is "${result.pill}"`,
+      );
+    });
+
     await check('the catalog grid renders its real cards in the first commit', async () => {
       // No skeleton phase: the catalog is local data, so a loading placeholder could only
       // delay content that was already available.

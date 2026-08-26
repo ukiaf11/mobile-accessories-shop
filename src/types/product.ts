@@ -57,8 +57,9 @@ export interface Product {
   /** Resolved from `compatibility` at module load. Never hand-written. */
   compatibleDeviceIds: string[];
   /**
-   * Lowercased brand + series + model + name + category + tags, joined once at module
-   * load so free-text search is a substring test rather than a rebuild-per-keystroke.
+   * Lowercased brand + series + model + name + description + category + tags, joined
+   * once at module load so free-text search is a substring test rather than a
+   * rebuild-per-keystroke. Badges are excluded on purpose — see `buildSearchText`.
    */
   searchText: string;
   variants?: ProductVariant[];

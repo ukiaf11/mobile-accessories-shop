@@ -76,10 +76,16 @@ export function Navbar() {
        * No backdrop-filter on this header.
        *
        * It is `sticky`, so it is on screen for every frame of every scroll — and a
-       * backdrop-filter forces the compositor to re-snapshot and re-blur everything behind
-       * its full-width box on each of those frames, because the content behind it is moving
-       * by definition. Measured at roughly -20% main-thread long-task time for the scroll
-       * pass. The fill is opaque instead, which looks nearly identical over this palette.
+       * backdrop-filter forces a re-snapshot and re-blur of everything behind its
+       * full-width box on each of those frames, because the content behind it is moving
+       * by definition.
+       *
+       * That cost lands on the compositor and raster threads, NOT the main thread. An
+       * interleaved A/B re-adding the rule to the shipped build moved long-task time only
+       * ~5% (2874/3036/3209 ms without vs 2933/3446/3244 ms with — overlapping bands, i.e.
+       * noise), while frames over 32 ms rose ~20% and frame p50 went 34 -> 41 ms. So this
+       * buys smoother frames, not less scripting. The fill is opaque instead, which looks
+       * nearly identical over this palette.
        *
        * `.glass-panel` in globals.css is deliberately left alone: the hero floaters use it,
        * and it is not on screen for the whole scroll.

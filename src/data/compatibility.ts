@@ -69,12 +69,17 @@ function buildSearchText(
     for (const alias of device.aliases ?? []) deviceWords.add(alias);
   }
 
+  /*
+   * Badges are deliberately NOT indexed. Blueprint 04 section 10 lists brand, model,
+   * series, product name, category and tags; badges are merchandising labels already
+   * shown as chips. Indexing them made every "Popular"-badged product match the query
+   * "pop" — 13 results where there had been 1, burying the actual Pop Grip.
+   */
   return [
     rest.name,
     rest.description,
     rest.categoryId,
     ...(rest.tags ?? []),
-    ...(rest.badges ?? []),
     ...deviceWords,
   ].join(' ').toLowerCase();
 }

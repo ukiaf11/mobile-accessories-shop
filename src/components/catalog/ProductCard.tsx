@@ -47,7 +47,7 @@ function ProductCardImpl({ product, device, onQuickView, onAdd }: ProductCardPro
     <article
       className={cn(
         'surface-card group relative flex h-full flex-col overflow-hidden',
-        'transition-[box-shadow,transform] duration-300 hover:shadow-[var(--shadow-lift)]',
+        'transition-[box-shadow,translate] duration-300 hover:shadow-[var(--shadow-lift)]',
         // hover:hover so a touch device never sticks in a hovered transform.
         'motion-safe:[@media(hover:hover)]:hover:-translate-y-1.5',
       )}
@@ -81,7 +81,7 @@ function ProductCardImpl({ product, device, onQuickView, onAdd }: ProductCardPro
             // Hidden on touch: the image itself is already a quick-view button there,
             // and an invisible-but-tappable pill is worse than no pill.
             'pointer-events-none absolute inset-x-3 bottom-3 hidden justify-end',
-            'transition-[opacity,transform] duration-300 [@media(hover:hover)]:flex',
+            'transition-[opacity,translate] duration-300 [@media(hover:hover)]:flex',
             'opacity-0 motion-safe:translate-y-1.5',
             'group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100',
             'group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100',
@@ -135,7 +135,7 @@ function ProductCardImpl({ product, device, onQuickView, onAdd }: ProductCardPro
             onClick={() => (hasVariants ? onQuickView(product) : onAdd(product))}
             className={cn(
               'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold',
-              'transition-[background-color,color,transform] duration-150',
+              'transition-[background-color,color,scale] duration-150',
               soldOut
                 ? 'cursor-not-allowed bg-surface-soft text-subtle'
                 : 'bg-accent-soft text-accent-strong hover:bg-accent hover:text-white motion-safe:active:scale-[0.97]',
