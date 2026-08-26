@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#6d5dfc" />
+
+    <!--
+      SEO. Blueprint 01_REQUIREMENTS.md section 3: even though this is a SPA, ship a real
+      title, description, Open Graph tags and structured data.
+      TODO(owner): replace the placeholder shop name, URL and contact details below to match
+      src/config/shop.ts — these are static tags, so they are not read from that file.
+    -->
+    <title>Mobile Accessories Shop — Cases, Tempered Glass & Chargers for Your Exact Model</title>
+    <meta
+      name="description"
+      content="Model-specific phone cases, tempered glass, chargers, earbuds and mobile accessories. Pick your exact phone model, see only what fits, and send your list to the shop."
+    />
+    <link rel="canonical" href="https://www.yourshop.in/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mobile Accessories Shop" />
+    <meta property="og:title" content="Covers, glass & accessories that actually fit your phone" />
+    <meta
+      property="og:description"
+      content="Pick your exact model and we show only what fits it. Send your list to the shop and we confirm availability and final price."
+    />
+    <meta property="og:url" content="https://www.yourshop.in/" />
+    <meta property="og:image" content="https://www.yourshop.in/og-image.png" />
+    <meta property="og:locale" content="en_IN" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Covers, glass & accessories that actually fit your phone" />
+    <meta
+      name="twitter:description"
+      content="Model-specific mobile accessories. Pick your phone, see what fits, send your list to the shop."
+    />
+    <meta name="twitter:image" content="https://www.yourshop.in/og-image.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Store",
+        "name": "Mobile Accessories Shop",
+        "description": "Model-specific mobile phone and tablet accessories: cases, tempered glass, chargers, cables, audio, power banks and holders.",
+        "url": "https://www.yourshop.in/",
+        "telephone": "+91 79911 52081",
+        "priceRange": "₹₹",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "17, Raipur Khadar Main Rd, Raipur Khadar, Sector 126, Noida, Uttar Pradesh 201313",
+          "addressLocality": "Noida",
+          "addressRegion": "Uttar Pradesh",
+          "postalCode": "201313",
+          "addressCountry": "IN"
+        },
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+            "opens": "10:00",
+            "closes": "20:30"
+          },
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": "Sunday",
+            "opens": "11:00",
+            "closes": "18:00"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: system-ui, sans-serif; line-height: 1.6;">
+        <h1>Mobile Accessories Shop</h1>
+        <p>
+          This storefront needs JavaScript to show accessories that match your phone model.
+          Please enable JavaScript, or call the shop on
+          <a href="tel:+917991152081">+91 79911 52081</a> and we will help you directly.
+        </p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

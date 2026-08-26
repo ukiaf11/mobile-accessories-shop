@@ -1,0 +1,31 @@
+{
+  /*
+   * Vercel compiles the files under `api/` with THIS config, not `tsconfig.api.json`.
+   * Without explicit compilerOptions it defaulted to `moduleResolution: nodenext`, which
+   * demands `.js` extensions on every relative import, and to no Node types — so every
+   * serverless function failed to build and returned FUNCTION_INVOCATION_FAILED at runtime.
+   * These options mirror tsconfig.api.json so the deployed build matches the local one.
+   *
+   * `files: []` + `references` keeps `tsc -b` building the three real projects.
+   */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.api.json" }
+  ]
+}
